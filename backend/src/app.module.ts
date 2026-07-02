@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { AppConfigModule } from '@common/config/app-config/app-config.module';
 import { AxiosModule } from '@common/axios/axios.module';
+import { AppConfigModule } from '@common/config/app-config/app-config.module';
 
 import { SubscriptionPageBackendModule } from '@modules/subscription-page-backend.modules';
 

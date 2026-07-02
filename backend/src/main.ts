@@ -1,29 +1,29 @@
 process.title = 'rw-subpage';
 
-import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
-import cookieParser from 'cookie-parser';
-import { createLogger } from 'winston';
 import compression from 'compression';
-import * as winston from 'winston';
+import cookieParser from 'cookie-parser';
+import * as ejs from 'ejs';
 import { json } from 'express';
-import path from 'node:path';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import * as ejs from 'ejs';
+import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
+import path from 'node:path';
+import { createLogger } from 'winston';
+import * as winston from 'winston';
 
-import { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 import { APP_CONFIG_ROUTE_WO_LEADING_PATH } from '@remnawave/subscription-page-types';
 
-import { checkAssetsCookieMiddleware } from '@common/middlewares/check-assets-cookie.middleware';
-import { NotFoundExceptionFilter } from '@common/exception/not-found-exception.filter';
-import { isDevelopment, isDevOrDebugLogsEnabled } from '@common/utils/startup-app';
-import { noRobotsMiddleware, proxyCheckMiddleware } from '@common/middlewares';
-import { getStartMessage } from '@common/utils/startup-app/get-start-message';
-import { customLogFilter } from '@common/utils/filter-logs/filter-logs';
 import { TypedConfigService } from '@common/config/app-config';
+import { NotFoundExceptionFilter } from '@common/exception/not-found-exception.filter';
+import { noRobotsMiddleware, proxyCheckMiddleware } from '@common/middlewares';
+import { checkAssetsCookieMiddleware } from '@common/middlewares/check-assets-cookie.middleware';
 import { getRealIp } from '@common/middlewares/get-real-ip';
+import { customLogFilter } from '@common/utils/filter-logs/filter-logs';
+import { isDevelopment, isDevOrDebugLogsEnabled } from '@common/utils/startup-app';
+import { getStartMessage } from '@common/utils/startup-app/get-start-message';
 
 import { AppModule } from './app.module';
 

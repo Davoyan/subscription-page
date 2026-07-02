@@ -8,12 +8,12 @@ import {
 } from '@remnawave/backend-contract';
 import { APP_CONFIG_ROUTE_WO_LEADING_PATH } from '@remnawave/subscription-page-types';
 
-import { GetJWTPayload } from '@common/decorators/get-jwt-payload';
-import { ClientIp } from '@common/decorators/get-ip';
 import { IJwtPayload } from '@common/constants';
+import { ClientIp } from '@common/decorators/get-ip';
+import { GetJWTPayload } from '@common/decorators/get-jwt-payload';
 
-import { SubpageConfigService } from './subpage-config.service';
 import { RootService } from './root.service';
+import { SubpageConfigService } from './subpage-config.service';
 
 @Controller()
 export class RootController {
@@ -26,7 +26,7 @@ export class RootController {
 
     @Get(APP_CONFIG_ROUTE_WO_LEADING_PATH)
     async getSubscriptionPageConfig(@GetJWTPayload() user: IJwtPayload, @Req() request: Request) {
-        return await this.subpageConfigService.getSubscriptionPageConfig(user.su, request);
+        return this.subpageConfigService.getSubscriptionPageConfig(user.su, request);
     }
 
     @Get([':shortUuid', ':shortUuid/:clientType'])
@@ -43,12 +43,7 @@ export class RootController {
         }
 
         if (clientType === undefined) {
-            return await this.rootService.serveSubscriptionPage(
-                clientIp,
-                request,
-                response,
-                shortUuid,
-            );
+            return this.rootService.serveSubscriptionPage(clientIp, request, response, shortUuid);
         }
 
         if (!REQUEST_TEMPLATE_TYPE_VALUES.includes(clientType as TRequestTemplateTypeKeys)) {
@@ -56,14 +51,13 @@ export class RootController {
 
             response.socket?.destroy();
             return;
-        } else {
-            return await this.rootService.serveSubscriptionPage(
-                clientIp,
-                request,
-                response,
-                shortUuid,
-                clientType as TRequestTemplateTypeKeys,
-            );
         }
+        return this.rootService.serveSubscriptionPage(
+            clientIp,
+            request,
+            response,
+            shortUuid,
+            clientType as TRequestTemplateTypeKeys,
+        );
     }
 }
