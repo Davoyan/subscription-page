@@ -1,6 +1,5 @@
 process.title = 'rw-subpage';
 
-import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import * as ejs from 'ejs';
 import { json } from 'express';
@@ -93,8 +92,6 @@ async function bootstrap(): Promise<void> {
     app.use(json({ limit: '100mb' }));
 
     app.use(helmet({ contentSecurityPolicy: false }));
-
-    app.use(compression());
 
     app.use(
         morgan(
