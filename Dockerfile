@@ -1,21 +1,22 @@
-FROM node:24.17-trixie-slim AS backend-build
+FROM node:24.18-trixie-slim AS backend-build
 WORKDIR /opt/app
 
 COPY backend/package*.json ./
 COPY backend/tsconfig.json ./
 COPY backend/tsconfig.build.json ./
 
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit --no-fund
 
 COPY backend/ .
 
-RUN npm run build
+RUN npm run build \
+    && npm run trace
 
-RUN npm cache clean --force 
+RUN cd /opt/app/dist && \
+    find node_modules \( -name '*.js.map' -o -name '*.mjs.map' \) -delete && \
+    find node_modules \( -name '*.d.ts' -o -name '*.d.cts' -o -name '*.d.mts' \) -delete
 
-RUN npm prune --omit=dev
-
-FROM node:24.17-trixie-slim
+FROM node:24.18-trixie-slim
 WORKDIR /opt/app
 
 LABEL org.opencontainers.image.title="Remnawave Subscription Page"
@@ -30,20 +31,19 @@ LABEL org.opencontainers.image.documentation="https://docs.rw"
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-build /opt/app/dist ./dist
-COPY --from=backend-build /opt/app/node_modules ./node_modules
 
 COPY frontend/dist/ ./frontend/
-
-COPY backend/package*.json ./
-
-
 COPY backend/ecosystem.config.js ./
 COPY backend/docker-entrypoint.sh ./
 
 ENV PM2_DISABLE_VERSION_CHECK=true
 ENV NODE_OPTIONS="--max-old-space-size=16384"
 
-RUN npm install pm2 -g
+RUN npm install pm2 -g \
+&& rm -rf /usr/local/lib/node_modules/npm \
+        /usr/local/lib/node_modules/corepack \
+        /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+        /usr/local/include/node
 
 ENTRYPOINT [ "/bin/sh", "docker-entrypoint.sh" ]
 

@@ -14,28 +14,15 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "paths": {
-      "@common/*": [
-        "./src/common/*"
-      ],
-      "@integration-modules/*": [
-        "./src/integration-modules/*"
-      ],
-      "@modules/*": [
-        "./src/modules/*"
-      ],
-      "@libs/contracts/*": [
-        "./libs/contract/*"
-      ],
-      "@contract/*": [
-        "./libs/contract/*"
-      ],
-      "@queue/*": [
-        "./src/queue/*"
-      ],
-      "@scheduler/*": [
-        "./src/scheduler/*"
-      ]
+      "@common/*": ["./src/common/*"],
+      "@integration-modules/*": ["./src/integration-modules/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@libs/contracts/*": ["./libs/contract/*"],
+      "@contract/*": ["./libs/contract/*"],
+      "@queue/*": ["./src/queue/*"],
+      "@scheduler/*": ["./src/scheduler/*"]
     },
+    "typeRoots": ["./@types"],
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,

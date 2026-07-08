@@ -2,7 +2,6 @@ process.title = 'rw-subpage';
 
 import cookieParser from 'cookie-parser';
 import * as ejs from 'ejs';
-import { json } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
@@ -17,9 +16,13 @@ import { APP_CONFIG_ROUTE_WO_LEADING_PATH } from '@remnawave/subscription-page-t
 
 import { TypedConfigService } from '@common/config/app-config';
 import { NotFoundExceptionFilter } from '@common/exception/not-found-exception.filter';
-import { noRobotsMiddleware, proxyCheckMiddleware } from '@common/middlewares';
-import { checkAssetsCookieMiddleware } from '@common/middlewares/check-assets-cookie.middleware';
-import { getRealIp } from '@common/middlewares/get-real-ip';
+import {
+    headerFilterMiddleware,
+    noRobotsMiddleware,
+    proxyCheckMiddleware,
+    checkAssetsCookieMiddleware,
+    getRealIp,
+} from '@common/middlewares';
 import { customLogFilter } from '@common/utils/filter-logs/filter-logs';
 import { isDevelopment, isDevOrDebugLogsEnabled } from '@common/utils/startup-app';
 import { getStartMessage } from '@common/utils/startup-app/get-start-message';
@@ -46,7 +49,7 @@ const logger = createLogger({
             format: 'YYYY-MM-DD HH:mm:ss.SSS',
         }),
         winston.format.ms(),
-        nestWinstonModuleUtilities.format.nestLike(`#${instanceId}`, {
+        nestWinstonModuleUtilities.format.nestLike(`${instanceId}`, {
             colors: true,
             prettyPrint: true,
             processId: false,
@@ -73,11 +76,17 @@ async function bootstrap(): Promise<void> {
 
     app.set('trust proxy', config.getOrThrow('TRUST_PROXY'));
 
-    app.use(cookieParser());
+    if (!isDevelopment()) {
+        app.use(proxyCheckMiddleware);
+    }
 
-    app.use(noRobotsMiddleware, proxyCheckMiddleware, checkAssetsCookieMiddleware, getRealIp);
-
-    app.useGlobalFilters(new NotFoundExceptionFilter());
+    app.use(
+        cookieParser(),
+        noRobotsMiddleware,
+        checkAssetsCookieMiddleware,
+        getRealIp,
+        headerFilterMiddleware,
+    );
 
     app.useStaticAssets(assetsPath, {
         index: false,
@@ -88,8 +97,6 @@ async function bootstrap(): Promise<void> {
 
     app.engine('html', ejs.renderFile);
     app.setViewEngine('html');
-
-    app.use(json({ limit: '100mb' }));
 
     app.use(helmet({ contentSecurityPolicy: false }));
 
@@ -111,6 +118,8 @@ async function bootstrap(): Promise<void> {
     } else {
         logger.info('[CONFIG] CUSTOM_SUB_PREFIX: not set');
     }
+
+    app.useGlobalFilters(new NotFoundExceptionFilter());
 
     app.enableCors({
         origin: '*',

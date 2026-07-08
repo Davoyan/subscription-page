@@ -1,8 +1,10 @@
+import { Request, Response } from 'express';
+import { nanoid } from 'nanoid';
 import { exit } from 'node:process';
-import { Request } from 'express';
 
-import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 
 import {
     SubscriptionPageRawConfigSchema,
@@ -10,13 +12,14 @@ import {
     SUBPAGE_DEFAULT_CONFIG_UUID,
 } from '@remnawave/subscription-page-types';
 
-import { decryptUuid, encryptUuid } from '@common/utils/crypt-utils';
-import { TypedConfigService } from '@common/config/app-config';
 import { AxiosService } from '@common/axios';
+import { TypedConfigService } from '@common/config/app-config';
+import { isDevelopment } from '@common/utils';
+import { decryptUuid, encryptUuid } from '@common/utils/crypt-utils';
 
 @Injectable()
-export class SubpageConfigService implements OnApplicationBootstrap {
-    private readonly logger = new Logger(SubpageConfigService.name);
+export class WebpageService implements OnApplicationBootstrap {
+    private readonly logger = new Logger(WebpageService.name);
     private readonly internalJwtSecret: string;
     private readonly subpageConfigUuid: string;
     private readonly subpageConfigMap: Map<string, TSubscriptionPageRawConfig> = new Map();
@@ -24,6 +27,7 @@ export class SubpageConfigService implements OnApplicationBootstrap {
     constructor(
         private readonly configService: TypedConfigService,
         private readonly axiosService: AxiosService,
+        private readonly jwtService: JwtService,
     ) {
         this.internalJwtSecret = this.configService.getOrThrow('INTERNAL_JWT_SECRET');
         this.subpageConfigUuid = this.configService.getOrThrow('SUBPAGE_CONFIG_UUID');
@@ -78,7 +82,6 @@ export class SubpageConfigService implements OnApplicationBootstrap {
 
     public async getSubscriptionPageConfig(
         encryptedSubpageConfigUuid: string,
-        req: Request,
     ): Promise<object | void> {
         const decryptedSubpageConfigUuid = decryptUuid(
             encryptedSubpageConfigUuid,
@@ -86,17 +89,15 @@ export class SubpageConfigService implements OnApplicationBootstrap {
         );
 
         if (!decryptedSubpageConfigUuid) {
-            req.socket?.destroy();
-            return;
+            this.logger.error(`[FATAL] SubPage config ${encryptedSubpageConfigUuid} is not valid`);
+            throw new NotFoundException();
         }
 
         const subpageConfig = this.subpageConfigMap.get(decryptedSubpageConfigUuid);
 
         if (!subpageConfig) {
             this.logger.error(`[FATAL] SubPage config ${decryptedSubpageConfigUuid} not found`);
-            req.socket?.destroy();
-
-            return;
+            throw new NotFoundException();
         }
 
         return subpageConfig;
@@ -155,5 +156,80 @@ export class SubpageConfigService implements OnApplicationBootstrap {
         }
 
         return finalSubpageConfigUuid;
+    }
+
+    private generateJwtForCookie(uuid: string | null): string {
+        return this.jwtService.sign(
+            {
+                sessionId: nanoid(32),
+                su: this.getEncryptedSubpageConfigUuid(uuid),
+            },
+            {
+                expiresIn: '33m',
+            },
+        );
+    }
+
+    public async serveWebpage(
+        clientIp: string,
+        req: Request,
+        res: Response,
+        shortUuid: string,
+    ): Promise<void> {
+        try {
+            const subscriptionDataResponse = await this.axiosService.getSubscriptionInfo(
+                clientIp,
+                shortUuid,
+            );
+
+            if (!subscriptionDataResponse.isOk || !subscriptionDataResponse.response) {
+                res.socket?.destroy();
+                return;
+            }
+
+            const subpageConfigResponse = await this.axiosService.getSubpageConfig(
+                shortUuid,
+                req.headers,
+            );
+
+            if (!subpageConfigResponse.isOk || !subpageConfigResponse.response) {
+                res.socket?.destroy();
+                return;
+            }
+
+            const subpageConfig = subpageConfigResponse.response;
+
+            if (subpageConfig.webpageAllowed === false) {
+                this.logger.log(`Webpage access is not allowed by Remnawave's SRR.`);
+                res.socket?.destroy();
+                return;
+            }
+
+            const baseSettings = this.getBaseSettings(subpageConfig.subpageConfigUuid);
+
+            const subscriptionData = subscriptionDataResponse.response;
+
+            if (!baseSettings.showConnectionKeys) {
+                subscriptionData.response.links = [];
+                subscriptionData.response.ssConfLinks = {};
+            }
+
+            res.cookie('session', this.generateJwtForCookie(subpageConfig.subpageConfigUuid), {
+                httpOnly: true,
+                secure: !isDevelopment(),
+                maxAge: 1_800_000, // 30 minutes
+            });
+
+            res.render('index', {
+                metaTitle: baseSettings.metaTitle,
+                metaDescription: baseSettings.metaDescription,
+                panelData: Buffer.from(JSON.stringify(subscriptionData)).toString('base64'),
+            });
+        } catch (error) {
+            this.logger.error(`Error in returnWebpage: ${error}`);
+
+            res.socket?.destroy();
+            return;
+        }
     }
 }
