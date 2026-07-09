@@ -12,10 +12,6 @@ COPY backend/ .
 RUN npm run build \
     && npm run trace
 
-RUN cd /opt/app/dist && \
-    find node_modules \( -name '*.js.map' -o -name '*.mjs.map' \) -delete && \
-    find node_modules \( -name '*.d.ts' -o -name '*.d.cts' -o -name '*.d.mts' \) -delete
-
 FROM node:24.18-trixie-slim
 WORKDIR /opt/app
 

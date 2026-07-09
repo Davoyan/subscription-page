@@ -126,5 +126,10 @@ async function bootstrap(): Promise<void> {
     await app.listen(Number(config.getOrThrow('APP_PORT')));
 
     logger.info('\n' + (await getStartMessage()) + '\n');
+
+    if (import.meta.webpackHot) {
+        import.meta.webpackHot.accept();
+        import.meta.webpackHot.dispose(() => app.close());
+    }
 }
 void bootstrap();
