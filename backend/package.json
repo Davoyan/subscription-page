@@ -45,6 +45,7 @@
     "nanoid": "5.1.16",
     "nest-winston": "^1.10.2",
     "proxy-addr": "^2.0.7",
+    "sirv": "^3.0.2",
     "table": "^6.9.0",
     "winston": "^3.19.0",
     "xbytes": "^1.9.1",

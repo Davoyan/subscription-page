@@ -1,5 +1,8 @@
+import ejs from 'ejs';
 import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { exit } from 'node:process';
 
 import { Injectable, NotFoundException, OnApplicationBootstrap } from '@nestjs/common';
@@ -14,7 +17,7 @@ import {
 
 import { AxiosService } from '@common/axios';
 import { TypedConfigService } from '@common/config/app-config';
-import { isDevelopment } from '@common/utils';
+import { getAssetsPath, isDevelopment } from '@common/utils';
 import { decryptUuid, encryptUuid } from '@common/utils/crypt-utils';
 
 @Injectable()
@@ -23,6 +26,7 @@ export class WebpageService implements OnApplicationBootstrap {
     private readonly internalJwtSecret: string;
     private readonly subpageConfigUuid: string;
     private readonly subpageConfigMap: Map<string, TSubscriptionPageRawConfig> = new Map();
+    private indexTemplate: ejs.TemplateFunction;
 
     constructor(
         private readonly configService: TypedConfigService,
@@ -34,6 +38,10 @@ export class WebpageService implements OnApplicationBootstrap {
     }
 
     public async onApplicationBootstrap(): Promise<void> {
+        this.indexTemplate = ejs.compile(
+            readFileSync(path.join(getAssetsPath(), 'index.html'), 'utf8'),
+        );
+
         const subscriptionPageConfigList = await this.fetchSubscriptionPageConfigList();
 
         if (subscriptionPageConfigList.length === 0) {
@@ -220,11 +228,13 @@ export class WebpageService implements OnApplicationBootstrap {
                 maxAge: 1_800_000, // 30 minutes
             });
 
-            res.render('index', {
-                metaTitle: baseSettings.metaTitle,
-                metaDescription: baseSettings.metaDescription,
-                panelData: Buffer.from(JSON.stringify(subscriptionData)).toString('base64'),
-            });
+            res.type('html').send(
+                this.indexTemplate({
+                    metaTitle: baseSettings.metaTitle,
+                    metaDescription: baseSettings.metaDescription,
+                    panelData: Buffer.from(JSON.stringify(subscriptionData)).toString('base64'),
+                }),
+            );
         } catch (error) {
             this.logger.error(`Error in returnWebpage: ${error}`);
 

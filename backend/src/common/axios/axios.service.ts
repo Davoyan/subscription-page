@@ -285,7 +285,7 @@ export class AxiosService implements OnModuleInit {
         withClientType: boolean = false,
         clientType?: TRequestTemplateTypeKeys,
     ): Promise<{
-        response: unknown;
+        subscription: Buffer;
         headers: RawAxiosResponseHeaders;
     } | null> {
         try {
@@ -295,9 +295,10 @@ export class AxiosService implements OnModuleInit {
                 basePath += '/' + encodeURIComponent(clientType);
             }
 
-            const response = await this.axiosInstance.request<unknown>({
+            const response = await this.axiosInstance.request<Buffer>({
                 method: 'GET',
                 url: basePath,
+                responseType: 'arraybuffer',
                 headers: {
                     ...headers,
                     Accept: '*/*',
@@ -310,11 +311,9 @@ export class AxiosService implements OnModuleInit {
             });
 
             return {
-                response: response.data,
+                subscription: response.data,
                 headers: Object.fromEntries(
-                    Object.entries(response.headers).filter(
-                        ([key]) => !IGNORED_HEADERS.has(key.toLowerCase()),
-                    ),
+                    Object.entries(response.headers).filter(([key]) => !IGNORED_HEADERS.has(key)),
                 ),
             };
         } catch (error) {

@@ -1,11 +1,11 @@
 process.title = 'rw-subpage';
 
 import cookieParser from 'cookie-parser';
-import * as ejs from 'ejs';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { utilities as nestWinstonModuleUtilities, WinstonModule } from 'nest-winston';
 import path from 'node:path';
+import sirv from 'sirv';
 import { createLogger } from 'winston';
 import * as winston from 'winston';
 
@@ -24,7 +24,7 @@ import {
     getRealIp,
 } from '@common/middlewares';
 import { customLogFilter } from '@common/utils/filter-logs/filter-logs';
-import { isDevelopment, isDevOrDebugLogsEnabled } from '@common/utils/startup-app';
+import { getAssetsPath, isDevelopment, isDevOrDebugLogsEnabled } from '@common/utils/startup-app';
 import { getStartMessage } from '@common/utils/startup-app/get-start-message';
 
 import { AppModule } from './app.module';
@@ -59,10 +59,6 @@ const logger = createLogger({
     level: isDevOrDebugLogsEnabled() ? 'debug' : 'http',
 });
 
-const assetsPath = isDevelopment()
-    ? path.join(__dirname, '..', '..', 'dev_frontend')
-    : '/opt/app/frontend';
-
 async function bootstrap(): Promise<void> {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
         logger: WinstonModule.createLogger({
@@ -72,6 +68,7 @@ async function bootstrap(): Promise<void> {
 
     const config = app.get(TypedConfigService);
 
+    app.set('etag', false);
     app.disable('x-powered-by');
 
     app.set('trust proxy', config.getOrThrow('TRUST_PROXY'));
@@ -80,23 +77,20 @@ async function bootstrap(): Promise<void> {
         app.use(proxyCheckMiddleware);
     }
 
+    app.use('/assets', cookieParser());
+    app.use('/assets', checkAssetsCookieMiddleware);
+
+    app.use(noRobotsMiddleware, getRealIp, headerFilterMiddleware);
+
     app.use(
-        cookieParser(),
-        noRobotsMiddleware,
-        checkAssetsCookieMiddleware,
-        getRealIp,
-        headerFilterMiddleware,
+        '/assets',
+        sirv(path.join(getAssetsPath(), 'assets'), {
+            maxAge: 604800, // 7 days
+            immutable: true,
+            etag: false,
+            // dev: isDevelopment(),
+        }),
     );
-
-    app.useStaticAssets(assetsPath, {
-        index: false,
-        dotfiles: 'ignore',
-    });
-
-    app.setBaseViewsDir(assetsPath);
-
-    app.engine('html', ejs.renderFile);
-    app.setViewEngine('html');
 
     app.use(helmet({ contentSecurityPolicy: false }));
 

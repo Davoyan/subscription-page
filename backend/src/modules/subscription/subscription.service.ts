@@ -38,7 +38,7 @@ export class SubscriptionService {
                 res.set(subscriptionDataResponse.headers);
             }
 
-            res.status(200).send(subscriptionDataResponse.response);
+            res.status(200).send(subscriptionDataResponse.subscription);
             return;
         } catch (error) {
             this.logger.error('Error in serveSubscriptionPage', error);
