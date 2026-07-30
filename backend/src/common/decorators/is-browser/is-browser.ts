@@ -11,6 +11,8 @@ const BROWSER_KEYWORDS = [
     'Edge',
     'TelegramBot',
     'WhatsApp',
+    'facebookexternalhit',
+    'SteamChat',
 ];
 
 export const IsBrowser = createParamDecorator((data: unknown, ctx: ExecutionContext): boolean => {
